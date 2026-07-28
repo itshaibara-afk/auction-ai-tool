@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h1>AIを育てる</h1>
+  <p class="muted">
+    これまでに送信された「フィードバック」と「購入後の結果」をAI自身に振り返らせて、
+    今後の判定ルールとして追加すべき内容を提案させます。提案内容を確認し、承認すると
+    学習ルールに反映され、以降の診断すべてに適用されます。
+  </p>
+  <div class="grid">
+    <div class="stat-box"><div class="num">{{ feedback_rows|length }}</div><div class="muted">フィードバック件数</div></div>
+    <div class="stat-box"><div class="num">{{ outcome_rows|length }}</div><div class="muted">購入後結果件数</div></div>
+  </div>
+  <form action="{{ url_for('grow_run') }}" method="post">
+    <button class="btn" type="submit">AIに振り返らせて提案を作成する</button>
+  </form>
+</div>
+
+{% if proposal %}
+<div class="card">
+  <h2>AIからの提案</h2>
+  <pre class="knowledge">{{ proposal }}</pre>
+  <form action="{{ url_for('grow_approve') }}" method="post" style="display:inline;">
+    <button class="btn" type="submit">承認して学習ルールに追加する</button>
+  </form>
+  <form action="{{ url_for('grow_discard') }}" method="post" style="display:inline;">
+    <button class="btn secondary" type="submit">破棄する</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>蓄積データ一覧</h2>
+  <h3>フィードバック</h3>
+  {% if feedback_rows %}
+  <table>
+    <tr><th>日時</th><th>評価</th><th>コメント</th></tr>
+    {% for f in feedback_rows %}
+    <tr><td>{{ f['created_at'][:16] }}</td><td>{{ f['rating'] }}</td><td>{{ f['comment'] }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">まだありません。</p>{% endif %}
+
+  <h3>購入後の結果</h3>
+  {% if outcome_rows %}
+  <table>
+    <tr><th>日時</th><th>購入</th><th>満足度</th><th>実際の状態</th></tr>
+    {% for o in outcome_rows %}
+    <tr><td>{{ o['created_at'][:16] }}</td><td>{{ o['purchased'] }}</td><td>{{ o['satisfaction'] }}</td><td>{{ o['actual_condition'] }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">まだありません。</p>{% endif %}
+</div>
+{% endblock %}

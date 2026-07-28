@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: auction-ai-tool
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --chdir app app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 180
+    envVars:
+      - key: AI_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ACCESS_PASSWORD
+        sync: false
+      - key: FLASK_SECRET_KEY
+        generateValue: true

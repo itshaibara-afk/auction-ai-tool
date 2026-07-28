@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}金額査定 - オークションシートAI診断{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>金額査定（豪州輸入 総額計算）</h1>
+  <p class="muted">落札価格から、オーストラリアで乗り出せる状態になるまでの総額を試算します。各項目は実際の案件に合わせて自由に変更できます。初期値は社内の査定モデルに基づく参考値です。</p>
+
+  <h3>落札価格</h3>
+  <table>
+    <tr>
+      <th style="width:40%">項目</th><th>入力</th><th style="width:22%">AUD換算</th>
+    </tr>
+    <tr>
+      <td>落札価格（円）</td>
+      <td><input type="number" id="jpy" value="1000000" step="10000" oninput="calc()"></td>
+      <td rowspan="2" id="purchase_aud" class="calc-cell">-</td>
+    </tr>
+    <tr>
+      <td>為替レート（1 AUD = 何円か・要確認）</td>
+      <td><input type="number" id="rate" value="100" step="0.1" oninput="calc()"></td>
+    </tr>
+  </table>
+
+  <h3>① 購入時の支払い（AUD）</h3>
+  <table>
+    <tr><th style="width:40%">項目</th><th>金額 (AUD)</th></tr>
+    <tr><td>日本側FOB費用（オークション手数料・国内陸送・輸出手続き等）</td><td><input type="number" id="fob" value="1828.10" step="10" oninput="calc()"></td></tr>
+    <tr><td>海上輸送費</td><td><input type="number" id="shipping" value="2300" step="10" oninput="calc()"></td></tr>
+    <tr><td>燻蒸・熱処理</td><td><input type="number" id="heat" value="250" step="10" oninput="calc()"></td></tr>
+    <tr><td><strong>小計①（落札価格込み）</strong></td><td id="sub1" class="calc-cell">-</td></tr>
+  </table>
+
+  <h3>② 船到着前の支払い（AUD）</h3>
+  <table>
+    <tr><th style="width:40%">項目</th><th>金額 (AUD)</th></tr>
+    <tr><td>GST税率（%・小計①に対して）</td><td><input type="number" id="gst_rate" value="10" step="0.5" oninput="calc()"></td></tr>
+    <tr><td>通関手数料</td><td><input type="number" id="clearance" value="250" step="10" oninput="calc()"></td></tr>
+    <tr><td><strong>小計②（GST＋通関）</strong></td><td id="sub2" class="calc-cell">-</td></tr>
+  </table>
+
+  <h3>③ 引取時の支払い（AUD）</h3>
+  <table>
+    <tr><th style="width:40%">項目</th><th>金額 (AUD)</th></tr>
+    <tr><td>コンプライアンス費用（RAWS・ADR適合）</td><td><input type="number" id="compliance" value="2500" step="10" oninput="calc()"></td></tr>
+    <tr><td>3ヶ月登録（レジストレーション）</td><td><input type="number" id="rego" value="300" step="10" oninput="calc()"></td></tr>
+    <tr><td>RWC（ロードワージー証明）</td><td><input type="number" id="rwc" value="200" step="10" oninput="calc()"></td></tr>
+    <tr><td>スタンプデューティ（州により異なる・要確認）</td><td><input type="number" id="stamp" value="752.83" step="10" oninput="calc()"></td></tr>
+    <tr><td>代行手数料（エージェントフィー）</td><td><input type="number" id="agent" value="2500" step="10" oninput="calc()"></td></tr>
+    <tr><td><strong>小計③</strong></td><td id="sub3" class="calc-cell">-</td></tr>
+  </table>
+
+  <div class="grid" style="margin-top: 18px;">
+    <div class="stat-box"><div class="num" id="total_aud">-</div><div class="muted">総額 (AUD)</div></div>
+    <div class="stat-box"><div class="num" id="total_jpy">-</div><div class="muted">総額 (円換算)</div></div>
+    <div class="stat-box"><div class="num" id="ratio">-</div><div class="muted">落札価格に対する倍率</div></div>
+  </div>
+  <p class="muted">※スタンプデューティは州・車両価格で変動します。GST・関税は通関業者の最終計算が正になります。この試算は社内検討用の目安です。</p>
+</div>
+
+<div class="card">
+  <h2>この査定を案件に保存</h2>
+  {% if cases %}
+  <form action="{{ url_for('estimate_save') }}" method="post">
+    <label>保存先の案件</label>
+    <select name="case_id">
+      {% for c in cases %}
+      <option value="{{ c['id'] }}">#{{ c['id'] }} {{ c['customer_name'] }}（{{ c['stage'] }}）</option>
+      {% endfor %}
+    </select>
+    <input type="hidden" name="summary" id="summary_field">
+    <button class="btn" type="submit" onclick="fillSummary()">案件のメモに保存</button>
+  </form>
+  {% else %}
+  <p class="muted">案件がまだありません。<a href="{{ url_for('cases') }}">案件管理</a>から作成すると、査定結果をメモとして保存できます。</p>
+  {% endif %}
+</div>
+
+<script>
+function n(id) { return parseFloat(document.getElementById(id).value) || 0; }
+function fmt(x) { return x.toLocaleString('ja-JP', {maximumFractionDigits: 0}); }
+function fmt2(x) { return x.toLocaleString('en-AU', {maximumFractionDigits: 2}); }
+
+let state = {};
+
+function calc() {
+  const rate = n('rate');
+  const purchaseAud = rate > 0 ? n('jpy') / rate : 0;
+  const sub1 = purchaseAud + n('fob') + n('shipping') + n('heat');
+  const sub2 = sub1 * n('gst_rate') / 100 + n('clearance');
+  const sub3 = n('compliance') + n('rego') + n('rwc') + n('stamp') + n('agent');
+  const total = sub1 + sub2 + sub3;
+
+  document.getElementById('purchase_aud').textContent = fmt2(purchaseAud) + ' AUD';
+  document.getElementById('sub1').textContent = fmt2(sub1) + ' AUD';
+  document.getElementById('sub2').textContent = fmt2(sub2) + ' AUD';
+  document.getElementById('sub3').textContent = fmt2(sub3) + ' AUD';
+  document.getElementById('total_aud').textContent = fmt2(total);
+  document.getElementById('total_jpy').textContent = '¥' + fmt(total * rate);
+  document.getElementById('ratio').textContent = purchaseAud > 0 ? (total / purchaseAud).toFixed(2) + '倍' : '-';
+
+  state = {jpy: n('jpy'), rate: rate, purchaseAud, sub1, sub2, sub3, total};
+}
+
+function fillSummary() {
+  const s = state;
+  document.getElementById('summary_field').value =
+    `【金額査定】落札 ¥${fmt(s.jpy)}（レート ${s.rate}円/AUD → ${fmt2(s.purchaseAud)} AUD）` +
+    ` / ①購入時 ${fmt2(s.sub1)} AUD / ②GST・通関 ${fmt2(s.sub2)} AUD / ③引取時 ${fmt2(s.sub3)} AUD` +
+    ` / 総額 ${fmt2(s.total)} AUD（約¥${fmt(s.total * s.rate)}）`;
+}
+
+calc();
+</script>
+
+<style>
+.calc-cell { font-weight: 800; color: var(--navy); background: #f0f4fa !important; }
+</style>
+{% endblock %}

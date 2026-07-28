@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}案件管理 - オークションシートAI診断{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>案件管理（豪州輸出パイプライン）</h1>
+  <p class="muted">問い合わせから豪州到着・コンプライアンスまでの流れを案件ごとに追跡します。</p>
+
+  <h3>新規案件</h3>
+  <form action="{{ url_for('case_new') }}" method="post">
+    <label>お客様名 *</label>
+    <input type="text" name="customer_name" required placeholder="例: Smith様 / メルボルンのディーラーA社">
+    <label>希望車種・条件</label>
+    <input type="text" name="car_info" placeholder="例: アルファード 20系 白 予算150万円">
+    <label>メモ</label>
+    <textarea name="notes" rows="2" placeholder="問い合わせ内容など"></textarea>
+    <button class="btn" type="submit">案件を作成</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>案件一覧</h2>
+  {% if cases %}
+  <table>
+    <tr><th>#</th><th>お客様</th><th>希望車種・条件</th><th>ステージ</th><th>担当</th><th>更新日</th></tr>
+    {% for c in cases %}
+    <tr>
+      <td><a href="{{ url_for('case_detail', case_id=c['id']) }}">#{{ c['id'] }}</a></td>
+      <td><a href="{{ url_for('case_detail', case_id=c['id']) }}">{{ c['customer_name'] }}</a></td>
+      <td>{{ c['car_info'] or '-' }}</td>
+      <td><span class="stage-chip {% if c['stage'] == '完了' %}done{% endif %}">{{ c['stage'] }}</span></td>
+      <td>{{ c['assignee'] or '-' }}</td>
+      <td>{{ c['updated_at'][:10] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">まだ案件がありません。上のフォームから作成してください。</p>
+  {% endif %}
+</div>
+{% endblock %}

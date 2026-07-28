@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h1>設定</h1>
+
+  <h2>AIエンジンの選択</h2>
+  <p class="muted">
+    <strong>Gemini（無料枠あり）</strong>：Googleの<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">AI Studio</a>で無料発行できるAPIキーで動きます。無料枠（1日あたり約1,500回）内なら費用ゼロ。<br>
+    <strong>Claude（有料・高精度）</strong>：Anthropicの従量課金APIキーが必要です（1診断あたり数円〜数十円）。<br>
+    ※無料枠のAPIでは送信データがモデル改善に使われる場合があります。機密性の高い情報を扱う場合は有料APIをご検討ください。
+  </p>
+  <form action="{{ url_for('save_provider') }}" method="post">
+    <label><input type="radio" name="provider" value="gemini" {% if provider == 'gemini' %}checked{% endif %} style="width:auto"> Gemini（無料枠あり）</label><br>
+    <label><input type="radio" name="provider" value="anthropic" {% if provider == 'anthropic' %}checked{% endif %} style="width:auto"> Claude（有料・高精度）</label>
+    <label style="margin-top:12px; display:block;">Gemini APIキー {% if gemini_key_set %}(登録済み・再入力で上書き){% endif %}</label>
+    <input type="password" name="gemini_api_key" placeholder="AIza...">
+    <label>Geminiモデル名</label>
+    <input type="text" name="gemini_model" value="{{ gemini_model }}">
+    <button class="btn" type="submit">AIエンジン設定を保存</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Claude (Anthropic) APIキー</h2>
+  <p class="muted">Claudeを使う場合のみ必要です。<a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> で発行したAPIキーを貼り付けてください。キーはサーバー上の <code>.env</code> ファイルにのみ保存され、外部には送信されません。</p>
+  <form action="{{ url_for('save_api_key') }}" method="post">
+    <label>APIキー {% if api_key_set %}(登録済み・再入力で上書き){% endif %}</label>
+    <input type="password" name="api_key" placeholder="sk-ant-...">
+    <label>使用モデル</label>
+    <input type="text" name="model" value="{{ model }}">
+    <button class="btn" type="submit">保存</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>社内共有（合言葉ログイン）</h2>
+  <p class="muted">合言葉を設定すると、アクセスした人は「名前＋合言葉」の入力を求められます。誰が診断・フィードバックしたかが記録されるようになります。空欄で保存すると解除（1人利用モード）。</p>
+  <form action="{{ url_for('save_access_password') }}" method="post">
+    <label>共有合言葉</label>
+    <input type="text" name="access_password" placeholder="例: kuruma2026">
+    <button class="btn" type="submit">保存</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>評価基準ナレッジ（ベースルール）</h2>
+  <p class="muted">AIが解析時に参照する評価基準・記号説明です。会場独自のルールや、自分の判断基準を直接ここに書き足すことができます。</p>
+  <form action="{{ url_for('save_knowledge') }}" method="post">
+    <textarea name="base_knowledge" rows="24" style="font-family: monospace; font-size: 0.85rem;">{{ base_knowledge }}</textarea>
+    <button class="btn" type="submit">ナレッジを保存</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>蓄積された学習ルール（自動生成）</h2>
+  <p class="muted">フィードバックや「AIを育てる」機能から自動的に蓄積されたルールです。編集はできませんが、内容確認ができます。個別に無効化したい場合は下の一覧から行えます。</p>
+  {% if learned_rules %}
+  <pre class="knowledge">{{ learned_rules }}</pre>
+  {% else %}
+  <p class="muted">まだ学習ルールはありません。</p>
+  {% endif %}
+
+  {% if rules_rows %}
+  <h3>ルール一覧</h3>
+  <table>
+    <tr><th>日時</th><th>種別</th><th>内容</th></tr>
+    {% for r in rules_rows %}
+    <tr><td>{{ r['created_at'][:16] }}</td><td>{{ r['source'] }}</td><td>{{ r['rule_text'][:120] }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

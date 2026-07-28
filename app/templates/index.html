@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h1>オークションシートを診断する</h1>
+  <p class="muted">車のオークションシートの写真をアップロードすると、AIが評価点・傷/凹み記号・特記事項を徹底解説し、「買い / 条件付き買い / 見送り推奨」を根拠つきで判定します。</p>
+  <form action="{{ url_for('analyze') }}" method="post" enctype="multipart/form-data">
+    <label>オークションシート画像</label>
+    <input type="file" name="sheet_image" accept="image/*" required>
+    {% if cases %}
+    <label>案件に紐付ける（任意）</label>
+    <select name="case_id">
+      <option value="">（紐付けない）</option>
+      {% for c in cases %}
+      <option value="{{ c['id'] }}">#{{ c['id'] }} {{ c['customer_name'] }}（{{ c['stage'] }}）</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+    <button class="btn" type="submit">AIに診断させる</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>これまでの診断傾向</h2>
+  <div class="grid">
+    <div class="stat-box"><div class="num">{{ stats.total }}</div><div class="muted">診断件数</div></div>
+    <div class="stat-box"><div class="num">{{ stats.feedback_total }}</div><div class="muted">フィードバック数</div></div>
+    <div class="stat-box"><div class="num">{{ stats.accuracy_pct if stats.accuracy_pct is not none else "-" }}{% if stats.accuracy_pct is not none %}%{% endif %}</div><div class="muted">判定正解率(自己申告)</div></div>
+    <div class="stat-box"><div class="num">{{ stats.outcomes_total }}</div><div class="muted">購入後結果報告</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>最近の診断結果</h2>
+  {% if analyses %}
+  <div class="analysis-list">
+    {% for a in analyses %}
+    <a class="analysis-item with-thumb" href="{{ url_for('result', analysis_id=a['id']) }}">
+      <img class="list-thumb" src="{{ url_for('uploaded_file', filename=a['image_filename']) }}" alt="シート" loading="lazy">
+      <span class="analysis-info">
+        <span class="analysis-title">#{{ a['id'] }} 総合評価: {{ a['grade'] or '不明' }} ／ {{ a['created_at'][:16] }}{% if a['user_name'] %} ／ {{ a['user_name'] }}{% endif %}</span>
+        {% if a['summary'] %}<span class="analysis-reason">{{ a['summary'][:90] }}{% if a['summary']|length > 90 %}…{% endif %}</span>{% endif %}
+      </span>
+      <span class="badge {{ a['verdict'] }}">
+        {% if a['verdict'] == 'buy' %}買い{% elif a['verdict'] == 'conditional' %}条件付き買い{% else %}見送り推奨{% endif %}
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">まだ診断履歴がありません。</p>
+  {% endif %}
+</div>
+{% endblock %}

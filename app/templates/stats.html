@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h1>統計ダッシュボード</h1>
+  <div class="grid">
+    <div class="stat-box"><div class="num">{{ stats.total }}</div><div class="muted">総診断件数</div></div>
+    <div class="stat-box"><div class="num">{{ stats.feedback_total }}</div><div class="muted">フィードバック件数</div></div>
+    <div class="stat-box"><div class="num">{{ stats.accuracy_pct if stats.accuracy_pct is not none else "-" }}{% if stats.accuracy_pct is not none %}%{% endif %}</div><div class="muted">自己申告正解率</div></div>
+    <div class="stat-box"><div class="num">{{ stats.outcomes_total }}</div><div class="muted">購入後結果報告数</div></div>
+  </div>
+
+  <h3>判定の内訳</h3>
+  <table>
+    <tr><th>判定</th><th>件数</th></tr>
+    {% for verdict, count in stats.verdict_breakdown.items() %}
+    <tr><td>{{ verdict }}</td><td>{{ count }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>購入後の結果一覧</h2>
+  {% if outcomes %}
+  <table>
+    <tr><th>日時</th><th>元の判定</th><th>購入</th><th>満足度</th><th>修理費用</th><th>シートになかった問題</th></tr>
+    {% for o in outcomes %}
+    <tr>
+      <td>{{ o['created_at'][:16] }}</td>
+      <td>{{ o['analysis_verdict'] }}</td>
+      <td>{{ o['purchased'] }}</td>
+      <td>{{ o['satisfaction'] }}</td>
+      <td>{{ o['repair_cost'] if o['repair_cost'] is not none else '-' }}</td>
+      <td>{{ o['hidden_issues'] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">まだ結果報告がありません。</p>
+  {% endif %}
+</div>
+{% endblock %}

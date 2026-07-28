@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}オークションシートAI診断{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topnav">
+    <div class="brand">🚗 オークションシートAI診断</div>
+    <nav>
+      <a href="{{ url_for('index') }}">診断する</a>
+      <a href="{{ url_for('cases') }}">案件管理</a>
+      <a href="{{ url_for('estimate') }}">金額査定</a>
+      <a href="{{ url_for('stats') }}">統計</a>
+      <a href="{{ url_for('grow') }}">AIを育てる</a>
+      <a href="{{ url_for('settings') }}">設定{% if not has_api_key %} ⚠️{% endif %}</a>
+      {% if login_enabled and current_user %}
+      <a href="{{ url_for('logout') }}">{{ current_user }}｜ログアウト</a>
+      {% endif %}
+    </nav>
+  </header>
+  <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% if not has_api_key %}
+      <div class="flash error">
+        AIのAPIキーが未設定です。<a href="{{ url_for('settings') }}">設定画面</a>から登録してください（Gemini無料キー対応）。
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
