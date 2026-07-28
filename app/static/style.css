@@ -305,6 +305,39 @@ pre.knowledge {
 }
 .stage-chip.done { background: var(--good); }
 
+/* ---- ドラッグ&ドロップ ---- */
+.dropzone {
+  border: 2px dashed var(--navy-line);
+  border-radius: 8px;
+  background: #f6f8fb;
+  padding: 34px 20px;
+  text-align: center;
+  color: var(--muted);
+  cursor: pointer;
+  margin: 6px 0 14px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dropzone.dragover { border-color: var(--red); background: #fdf3f5; color: var(--red); }
+.dropzone.has-file { border-style: solid; border-color: var(--good); background: var(--good-bg); color: var(--good); font-weight: 700; }
+.dropzone input[type=file] { display: none; }
+
+.lang-link {
+  border: 1px solid #46688f;
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.price-tag {
+  display: inline-block;
+  background: var(--good-bg);
+  color: var(--good);
+  border: 2px solid var(--good);
+  border-radius: 6px;
+  padding: 4px 14px;
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
 @media (max-width: 640px) {
   header.topnav nav { float: none; display: block; padding: 0 16px 10px; margin-top: 0; }
   header.topnav nav a { margin-left: 0; margin-right: 14px; }

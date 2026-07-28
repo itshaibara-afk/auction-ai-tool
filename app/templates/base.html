@@ -1,23 +1,28 @@
 <!doctype html>
-<html lang="ja">
+<html lang="{{ lang }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}オークションシートAI診断{% endblock %}</title>
+  <title>{% block title %}{{ t('app_title') }}{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <header class="topnav">
-    <div class="brand">🚗 オークションシートAI診断</div>
+    <div class="brand">🚗 {{ t('app_title') }}</div>
     <nav>
-      <a href="{{ url_for('index') }}">診断する</a>
-      <a href="{{ url_for('cases') }}">案件管理</a>
-      <a href="{{ url_for('estimate') }}">金額査定</a>
-      <a href="{{ url_for('stats') }}">統計</a>
-      <a href="{{ url_for('grow') }}">AIを育てる</a>
-      <a href="{{ url_for('settings') }}">設定{% if not has_api_key %} ⚠️{% endif %}</a>
+      <a href="{{ url_for('index') }}">{{ t('nav_diagnose') }}</a>
+      <a href="{{ url_for('cases') }}">{{ t('nav_cases') }}</a>
+      <a href="{{ url_for('estimate') }}">{{ t('nav_estimate') }}</a>
+      <a href="{{ url_for('stats') }}">{{ t('nav_stats') }}</a>
+      <a href="{{ url_for('grow') }}">{{ t('nav_grow') }}</a>
+      <a href="{{ url_for('settings') }}">{{ t('nav_settings') }}{% if not has_api_key %} ⚠️{% endif %}</a>
+      {% if lang == 'en' %}
+      <a href="{{ url_for('set_lang', code='ja') }}" class="lang-link">日本語</a>
+      {% else %}
+      <a href="{{ url_for('set_lang', code='en') }}" class="lang-link">EN</a>
+      {% endif %}
       {% if login_enabled and current_user %}
-      <a href="{{ url_for('logout') }}">{{ current_user }}｜ログアウト</a>
+      <a href="{{ url_for('logout') }}">{{ current_user }}｜{{ t('nav_logout') }}</a>
       {% endif %}
     </nav>
   </header>

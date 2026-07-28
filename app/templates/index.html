@@ -1,53 +1,88 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card">
-  <h1>オークションシートを診断する</h1>
-  <p class="muted">車のオークションシートの写真をアップロードすると、AIが評価点・傷/凹み記号・特記事項を徹底解説し、「買い / 条件付き買い / 見送り推奨」を根拠つきで判定します。</p>
-  <form action="{{ url_for('analyze') }}" method="post" enctype="multipart/form-data">
-    <label>オークションシート画像</label>
-    <input type="file" name="sheet_image" accept="image/*" required>
+  <h1>{{ t('index_h1') }}</h1>
+  <p class="muted">{{ t('index_desc') }}</p>
+  <form action="{{ url_for('analyze') }}" method="post" enctype="multipart/form-data" id="analyze_form">
+    <label>{{ t('sheet_image') }}</label>
+    <div id="dropzone" class="dropzone">
+      <span id="dz_text">{{ t('drop_hint') }}</span>
+      <input type="file" name="sheet_image" id="file_input" accept="image/*" required>
+    </div>
     {% if cases %}
-    <label>案件に紐付ける（任意）</label>
+    <label>{{ t('link_to_case') }}</label>
     <select name="case_id">
-      <option value="">（紐付けない）</option>
+      <option value="">{{ t('no_link') }}</option>
       {% for c in cases %}
-      <option value="{{ c['id'] }}">#{{ c['id'] }} {{ c['customer_name'] }}（{{ c['stage'] }}）</option>
+      <option value="{{ c['id'] }}">#{{ c['id'] }} {{ c['customer_name'] }}（{{ tr_stage(c['stage']) }}）</option>
       {% endfor %}
     </select>
     {% endif %}
-    <button class="btn" type="submit">AIに診断させる</button>
+    <button class="btn" type="submit" id="submit_btn">{{ t('diagnose_btn') }}</button>
   </form>
 </div>
 
 <div class="card">
-  <h2>これまでの診断傾向</h2>
+  <h2>{{ t('stats_h2') }}</h2>
   <div class="grid">
-    <div class="stat-box"><div class="num">{{ stats.total }}</div><div class="muted">診断件数</div></div>
-    <div class="stat-box"><div class="num">{{ stats.feedback_total }}</div><div class="muted">フィードバック数</div></div>
-    <div class="stat-box"><div class="num">{{ stats.accuracy_pct if stats.accuracy_pct is not none else "-" }}{% if stats.accuracy_pct is not none %}%{% endif %}</div><div class="muted">判定正解率(自己申告)</div></div>
-    <div class="stat-box"><div class="num">{{ stats.outcomes_total }}</div><div class="muted">購入後結果報告</div></div>
+    <div class="stat-box"><div class="num">{{ stats.total }}</div><div class="muted">{{ t('stat_total') }}</div></div>
+    <div class="stat-box"><div class="num">{{ stats.feedback_total }}</div><div class="muted">{{ t('stat_feedback') }}</div></div>
+    <div class="stat-box"><div class="num">{{ stats.accuracy_pct if stats.accuracy_pct is not none else "-" }}{% if stats.accuracy_pct is not none %}%{% endif %}</div><div class="muted">{{ t('stat_accuracy') }}</div></div>
+    <div class="stat-box"><div class="num">{{ stats.outcomes_total }}</div><div class="muted">{{ t('stat_outcomes') }}</div></div>
   </div>
 </div>
 
 <div class="card">
-  <h2>最近の診断結果</h2>
+  <h2>{{ t('recent_h2') }}</h2>
   {% if analyses %}
   <div class="analysis-list">
     {% for a in analyses %}
     <a class="analysis-item with-thumb" href="{{ url_for('result', analysis_id=a['id']) }}">
-      <img class="list-thumb" src="{{ url_for('uploaded_file', filename=a['image_filename']) }}" alt="シート" loading="lazy">
+      <img class="list-thumb" src="{{ url_for('uploaded_file', filename=a['image_filename']) }}" alt="sheet" loading="lazy">
       <span class="analysis-info">
-        <span class="analysis-title">#{{ a['id'] }} 総合評価: {{ a['grade'] or '不明' }} ／ {{ a['created_at'][:16] }}{% if a['user_name'] %} ／ {{ a['user_name'] }}{% endif %}</span>
+        <span class="analysis-title">#{{ a['id'] }} {{ t('grade_label') }}: {{ a['grade'] or '-' }} ／ {{ a['created_at'][:16] }}{% if a['user_name'] %} ／ {{ a['user_name'] }}{% endif %}</span>
         {% if a['summary'] %}<span class="analysis-reason">{{ a['summary'][:90] }}{% if a['summary']|length > 90 %}…{% endif %}</span>{% endif %}
       </span>
       <span class="badge {{ a['verdict'] }}">
-        {% if a['verdict'] == 'buy' %}買い{% elif a['verdict'] == 'conditional' %}条件付き買い{% else %}見送り推奨{% endif %}
+        {% if a['verdict'] == 'buy' %}{{ t('verdict_buy') }}{% elif a['verdict'] == 'conditional' %}{{ t('verdict_conditional') }}{% else %}{{ t('verdict_avoid') }}{% endif %}
       </span>
     </a>
     {% endfor %}
   </div>
   {% else %}
-  <p class="muted">まだ診断履歴がありません。</p>
+  <p class="muted">{{ t('no_history') }}</p>
   {% endif %}
 </div>
+
+<script>
+const dz = document.getElementById('dropzone');
+const fi = document.getElementById('file_input');
+const dzText = document.getElementById('dz_text');
+
+dz.addEventListener('click', () => fi.click());
+['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => {
+  e.preventDefault(); e.stopPropagation(); dz.classList.add('dragover');
+}));
+['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => {
+  e.preventDefault(); e.stopPropagation(); dz.classList.remove('dragover');
+}));
+dz.addEventListener('drop', e => {
+  if (e.dataTransfer.files.length) {
+    fi.files = e.dataTransfer.files;
+    showName();
+  }
+});
+fi.addEventListener('change', showName);
+function showName() {
+  if (fi.files.length) {
+    dzText.textContent = '📄 ' + fi.files[0].name;
+    dz.classList.add('has-file');
+  }
+}
+document.getElementById('analyze_form').addEventListener('submit', () => {
+  const b = document.getElementById('submit_btn');
+  b.disabled = true;
+  b.textContent = '{{ "Analyzing…" if lang == "en" else "解析中…（30秒ほどかかります）" }}';
+});
+</script>
 {% endblock %}

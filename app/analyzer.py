@@ -60,14 +60,37 @@ def _read_file(path):
 
 
 def _learned_rules_text():
+    """学習ルールをDBから読む（DBが空ならファイルをフォールバック）。
+    DBに保存することで、Render無料プラン等のディスク非永続環境でもルールが消えない。"""
+    try:
+        import db
+
+        rows = db.list_learned_rules(active_only=True)
+        if rows:
+            return "\n".join(r["rule_text"] for r in rows)
+    except Exception:  # noqa: BLE001
+        pass
     text = _read_file(LEARNED_RULES_PATH).strip()
     if not text:
         return "（まだ蓄積された学習ルールはありません。基本ルールのみで判定します。）"
     return text
 
 
+def get_base_knowledge():
+    """ベースナレッジ。設定画面で編集された場合はDB側を優先する。"""
+    try:
+        import db
+
+        override = db.get_kv("base_knowledge")
+        if override:
+            return override
+    except Exception:  # noqa: BLE001
+        pass
+    return _read_file(BASE_KNOWLEDGE_PATH)
+
+
 def build_system_prompt():
-    base_knowledge = _read_file(BASE_KNOWLEDGE_PATH)
+    base_knowledge = get_base_knowledge()
     learned = _learned_rules_text()
     return f"""あなたは日本の中古車オークションシート（USS・TAA・JUなど）を読み解くベテラン査定アドバイザーです。
 アップロードされた画像から、車両評価点・内外装評価・車両図の傷/凹み記号・特記事項を正確に読み取り、
@@ -156,8 +179,8 @@ def _call_gemini(api_key, model, max_tokens, user_parts, system=None):
     return "".join(p.get("text", "") for p in parts)
 
 
-def analyze_image(image_path, api_key, model=DEFAULT_MODEL, provider="anthropic"):
-    """画像を解析してdictを返す。失敗時は例外を投げる。"""
+def analyze_image(image_path, api_key, model=DEFAULT_MODEL, provider="anthropic", lang="ja"):
+    """画像を解析してdictを返す。失敗時は例外を投げる。lang='en'なら英語で出力させる。"""
     with open(image_path, "rb") as f:
         image_bytes = f.read()
     b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
@@ -173,6 +196,13 @@ def analyze_image(image_path, api_key, model=DEFAULT_MODEL, provider="anthropic"
 
     system_prompt = build_system_prompt()
     instruction = "この中古車オークションシートを解析し、指定されたJSON形式のみで回答してください。"
+    if lang == "en":
+        instruction += (
+            " IMPORTANT: Write ALL text values in the JSON in English "
+            "(explanations, damage meanings, remarks, verdict reason, checklist, disclaimer). "
+            "Keep the JSON keys and the verdict/severity/status enum values exactly as specified. "
+            "verdict_label should be one of: Buy / Conditional / Avoid."
+        )
 
     if provider == "gemini":
         user_parts = [

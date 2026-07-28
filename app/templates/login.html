@@ -1,14 +1,21 @@
 <!doctype html>
-<html lang="ja">
+<html lang="{{ lang }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ログイン - オークションシートAI診断</title>
+  <title>{{ t('login_h1') }} - {{ t('app_title') }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <header class="topnav">
-    <div class="brand">🚗 オークションシートAI診断</div>
+    <div class="brand">🚗 {{ t('app_title') }}</div>
+    <nav>
+      {% if lang == 'en' %}
+      <a href="{{ url_for('set_lang', code='ja') }}" class="lang-link">日本語</a>
+      {% else %}
+      <a href="{{ url_for('set_lang', code='en') }}" class="lang-link">EN</a>
+      {% endif %}
+    </nav>
   </header>
   <main style="max-width: 420px;">
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -17,14 +24,14 @@
       {% endfor %}
     {% endwith %}
     <div class="card">
-      <h1>ログイン</h1>
-      <p class="muted">社内共有の合言葉と、あなたの名前を入力してください。名前は診断履歴・フィードバックの記録に使われます。</p>
+      <h1>{{ t('login_h1') }}</h1>
+      <p class="muted">{{ t('login_desc') }}</p>
       <form method="post">
-        <label>名前（ニックネーム可）</label>
-        <input type="text" name="user_name" required placeholder="例: 田中">
-        <label>合言葉</label>
+        <label>{{ t('your_name') }}</label>
+        <input type="text" name="user_name" required>
+        <label>{{ t('passphrase') }}</label>
         <input type="password" name="password" required>
-        <button class="btn" type="submit">入る</button>
+        <button class="btn" type="submit">{{ t('enter_btn') }}</button>
       </form>
     </div>
   </main>

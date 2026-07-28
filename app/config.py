@@ -78,7 +78,7 @@ def save_gemini_key(key):
 
 
 def get_gemini_model():
-    return os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    return os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 
 
 def save_gemini_model(model_name):

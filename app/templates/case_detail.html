@@ -1,75 +1,123 @@
 {% extends "base.html" %}
-{% block title %}案件 #{{ case['id'] }} - オークションシートAI診断{% endblock %}
+{% block title %}{{ t('case_title') }} #{{ case['id'] }} - {{ t('app_title') }}{% endblock %}
 {% block content %}
 <div class="card">
-  <h1>案件 #{{ case['id'] }}：{{ case['customer_name'] }}</h1>
-  <p class="muted">作成: {{ case['created_at'][:10] }} ／ 担当: {{ case['assignee'] or '-' }}</p>
-  {% if case['car_info'] %}<p><strong>希望車種・条件:</strong> {{ case['car_info'] }}</p>{% endif %}
+  <h1>{{ t('case_title') }} #{{ case['id'] }}：{{ case['customer_name'] }}</h1>
+  <p class="muted">{{ t('created') }}: {{ case['created_at'][:10] }} ／ {{ t('staff') }}: {{ case['assignee'] or '-' }}</p>
+  {% if case['car_info'] %}<p><strong>{{ t('car_info') }}:</strong> {{ case['car_info'] }}</p>{% endif %}
   {% if case['notes'] %}<p class="muted">{{ case['notes'] }}</p>{% endif %}
 
-  <h3>進行ステージ</h3>
+  <h3>{{ t('pipeline_h3') }}</h3>
   <div class="pipeline">
     {% for s in stages %}
       {% set reached = stages.index(case['stage']) >= loop.index0 %}
-      <span class="pipeline-step {% if reached %}reached{% endif %} {% if s == case['stage'] %}current{% endif %}">{{ s }}</span>
+      <span class="pipeline-step {% if reached %}reached{% endif %} {% if s == case['stage'] %}current{% endif %}">{{ tr_stage(s) }}</span>
       {% if not loop.last %}<span class="pipeline-arrow">→</span>{% endif %}
     {% endfor %}
   </div>
   <form action="{{ url_for('case_stage', case_id=case['id']) }}" method="post" style="margin-top: 10px;">
-    <label>ステージを変更</label>
+    <label>{{ t('change_stage') }}</label>
     <select name="stage">
       {% for s in stages %}
-      <option value="{{ s }}" {% if s == case['stage'] %}selected{% endif %}>{{ s }}</option>
+      <option value="{{ s }}" {% if s == case['stage'] %}selected{% endif %}>{{ tr_stage(s) }}</option>
       {% endfor %}
     </select>
-    <button class="btn" type="submit">更新</button>
+    <button class="btn" type="submit">{{ t('update_btn') }}</button>
+  </form>
+
+  <h3>{{ t('final_price_h3') }}</h3>
+  <p class="muted">{{ t('final_price_desc') }}</p>
+  {% if case['final_price'] %}
+  <p><span class="price-tag">{{ case['final_price'] }}</span></p>
+  {% else %}
+  <p class="muted">{{ t('final_price_unset') }}</p>
+  {% endif %}
+  <form action="{{ url_for('case_price', case_id=case['id']) }}" method="post">
+    <input type="text" name="final_price" placeholder="AUD 22,500" value="{{ case['final_price'] or '' }}">
+    <button class="btn" type="submit">{{ t('save_btn') }}</button>
   </form>
 </div>
 
 <div class="card">
-  <h2>この案件の診断結果</h2>
+  <h2>{{ t('case_analyses_h2') }}</h2>
   {% if linked_analyses %}
   <div class="analysis-list">
     {% for a in linked_analyses %}
     <a class="analysis-item with-thumb" href="{{ url_for('result', analysis_id=a['id']) }}">
-      <img class="list-thumb" src="{{ url_for('uploaded_file', filename=a['image_filename']) }}" alt="シート" loading="lazy">
+      <img class="list-thumb" src="{{ url_for('uploaded_file', filename=a['image_filename']) }}" alt="sheet" loading="lazy">
       <span class="analysis-info">
-        <span class="analysis-title">#{{ a['id'] }} 総合評価: {{ a['grade'] or '不明' }} ／ {{ a['created_at'][:16] }}{% if a['user_name'] %} ／ {{ a['user_name'] }}{% endif %}</span>
+        <span class="analysis-title">#{{ a['id'] }} {{ t('grade_label') }}: {{ a['grade'] or '-' }} ／ {{ a['created_at'][:16] }}{% if a['user_name'] %} ／ {{ a['user_name'] }}{% endif %}</span>
         {% if a['summary'] %}<span class="analysis-reason">{{ a['summary'][:90] }}{% if a['summary']|length > 90 %}…{% endif %}</span>{% endif %}
       </span>
       <span class="badge {{ a['verdict'] }}">
-        {% if a['verdict'] == 'buy' %}買い{% elif a['verdict'] == 'conditional' %}条件付き買い{% else %}見送り推奨{% endif %}
+        {% if a['verdict'] == 'buy' %}{{ t('verdict_buy') }}{% elif a['verdict'] == 'conditional' %}{{ t('verdict_conditional') }}{% else %}{{ t('verdict_avoid') }}{% endif %}
       </span>
     </a>
     {% endfor %}
   </div>
   {% else %}
-  <p class="muted">まだ診断がありません。トップページでシートを診断する際に、この案件を選択すると紐付きます。</p>
+  <p class="muted">{{ t('case_analyses_empty') }}</p>
   {% endif %}
 </div>
 
 <div class="card">
-  <h2>経過メモ・履歴</h2>
-  <form action="{{ url_for('case_note', case_id=case['id']) }}" method="post">
-    <label>メモを追加（商談内容、船便情報、コンプライアンス状況など）</label>
-    <textarea name="content" rows="2" required></textarea>
-    <button class="btn" type="submit">記録する</button>
+  <h2>{{ t('docs_h2') }}</h2>
+  <p class="muted">{{ t('docs_desc') }}</p>
+  <form action="{{ url_for('case_document', case_id=case['id']) }}" method="post" enctype="multipart/form-data">
+    <label>{{ t('doc_type') }}</label>
+    <select name="doc_type">
+      <option value="Invoice">Invoice（請求書）</option>
+      <option value="Import Approval">Import Approval（輸入承認）</option>
+      <option value="契約書">契約書 / Contract</option>
+      <option value="輸出抹消仮登録証明書">輸出抹消仮登録証明書 / Export Certificate</option>
+      <option value="B/L">B/L（船荷証券）</option>
+      <option value="コンプライアンス書類">コンプライアンス書類 / Compliance</option>
+      <option value="その他">その他 / Other</option>
+    </select>
+    <label>{{ t('doc_file') }}</label>
+    <input type="file" name="doc_file" required>
+    <button class="btn" type="submit">{{ t('upload_doc_btn') }}</button>
   </form>
 
-  {% if events %}
-  <table style="margin-top: 14px;">
-    <tr><th>日時</th><th>担当</th><th>種別</th><th>内容</th></tr>
-    {% for e in events %}
+  {% if documents %}
+  <h3>{{ t('doc_list') }}</h3>
+  <table>
+    <tr><th>{{ t('date') }}</th><th>{{ t('type') }}</th><th>File</th><th>{{ t('staff') }}</th><th></th></tr>
+    {% for d in documents %}
     <tr>
-      <td>{{ e['created_at'][:16] }}</td>
-      <td>{{ e['user_name'] or '-' }}</td>
-      <td>{% if e['event_type'] == 'stage_change' %}ステージ変更{% else %}メモ{% endif %}</td>
-      <td>{{ e['content'] }}</td>
+      <td>{{ d['created_at'][:10] }}</td>
+      <td>{{ d['doc_type'] }}</td>
+      <td>{{ d['orig_name'] }}</td>
+      <td>{{ d['user_name'] or '-' }}</td>
+      <td><a href="{{ url_for('download_document', doc_id=d['id']) }}">{{ t('download') }}</a></td>
     </tr>
     {% endfor %}
   </table>
   {% endif %}
 </div>
 
-<p><a class="btn secondary" href="{{ url_for('cases') }}">案件一覧へ戻る</a></p>
+<div class="card">
+  <h2>{{ t('notes_h2') }}</h2>
+  <form action="{{ url_for('case_note', case_id=case['id']) }}" method="post">
+    <label>{{ t('add_note') }}</label>
+    <textarea name="content" rows="2" required></textarea>
+    <button class="btn" type="submit">{{ t('record_note_btn') }}</button>
+  </form>
+
+  {% if events %}
+  <table style="margin-top: 14px;">
+    <tr><th>{{ t('date') }}</th><th>{{ t('staff') }}</th><th>{{ t('type') }}</th><th>{{ t('content') }}</th></tr>
+    {% for e in events %}
+    <tr>
+      <td>{{ e['created_at'][:16] }}</td>
+      <td>{{ e['user_name'] or '-' }}</td>
+      <td>{% if e['event_type'] == 'stage_change' %}{{ t('stage_change') }}{% else %}{{ t('note_type') }}{% endif %}</td>
+      <td>{% if e['event_type'] == 'stage_change' %}{{ tr_stage(e['content']) }}{% else %}{{ e['content'] }}{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+
+<p><a class="btn secondary" href="{{ url_for('cases') }}">{{ t('back_to_cases') }}</a></p>
 {% endblock %}

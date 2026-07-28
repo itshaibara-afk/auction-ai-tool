@@ -1,33 +1,33 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card">
-  <h1>診断結果 #{{ row['id'] }}</h1>
-  <p class="muted">{{ row['created_at'][:16] }} / 使用モデル: {{ row['model'] }}</p>
-  <img class="thumb" src="{{ url_for('uploaded_file', filename=row['image_filename']) }}" alt="オークションシート">
+  <h1>{{ t('result_title') }} #{{ row['id'] }}</h1>
+  <p class="muted">{{ row['created_at'][:16] }} / {{ row['model'] }}{% if row['user_name'] %} / {{ row['user_name'] }}{% endif %}</p>
+  <img class="thumb" src="{{ url_for('uploaded_file', filename=row['image_filename']) }}" alt="auction sheet">
 
-  <h3>総合判定</h3>
+  <h3>{{ t('overall_verdict') }}</h3>
   <p>
     <span class="badge {{ data.verdict }}">{{ data.verdict_label }}</span>
-    <span class="muted">（AIの確信度: {{ data.confidence }}）</span>
+    <span class="muted">（{{ t('confidence') }}: {{ data.confidence }}）</span>
   </p>
   <p>{{ data.verdict_reason }}</p>
 
-  <h3>評価点の解説</h3>
-  <p><strong>会場:</strong> {{ data.auction_house or "不明" }} /
-     <strong>総合評価点:</strong> {{ data.overall_grade or "読み取れませんでした" }} /
-     <strong>外装評価:</strong> {{ data.exterior_grade or "読み取れませんでした" }} /
-     <strong>内装評価:</strong> {{ data.interior_grade or "読み取れませんでした" }} /
-     <strong>走行距離:</strong> {{ data.mileage_km or "不明" }} km</p>
+  <h3>{{ t('grade_section') }}</h3>
+  <p><strong>{{ t('auction_house') }}:</strong> {{ data.auction_house or "-" }} /
+     <strong>{{ t('grade_label') }}:</strong> {{ data.overall_grade or "-" }} /
+     <strong>{{ t('exterior') }}:</strong> {{ data.exterior_grade or "-" }} /
+     <strong>{{ t('interior') }}:</strong> {{ data.interior_grade or "-" }} /
+     <strong>{{ t('mileage') }}:</strong> {{ data.mileage_km or "-" }} km</p>
   <p>{{ data.grade_explanation }}</p>
 
   {% if data.user_criteria_check %}
-  <h3>あなたの仕入れ基準との照合</h3>
+  <h3>{{ t('criteria_section') }}</h3>
   <table>
-    <tr><th>基準</th><th>判定</th><th>備考</th></tr>
+    <tr><th>{{ t('criteria') }}</th><th>{{ t('judgement') }}</th><th>{{ t('note') }}</th></tr>
     {% for c in data.user_criteria_check %}
     <tr>
       <td>{{ c.criterion }}</td>
-      <td>{% if c.status == 'pass' %}✅ 合格{% elif c.status == 'fail' %}❌ 不合格{% else %}❔ 不明{% endif %}</td>
+      <td>{% if c.status == 'pass' %}{{ t('pass') }}{% elif c.status == 'fail' %}{{ t('fail') }}{% else %}{{ t('unknown') }}{% endif %}</td>
       <td>{{ c.note }}</td>
     </tr>
     {% endfor %}
@@ -35,19 +35,19 @@
   {% endif %}
 
   {% if data.export_notes %}
-  <h3>オーストラリア輸出における注意点</h3>
+  <h3>{{ t('export_section') }}</h3>
   <p>{{ data.export_notes }}</p>
   {% endif %}
 
   {% if data.cost_reference_note %}
-  <h3>コスト参考情報</h3>
+  <h3>{{ t('cost_section') }}</h3>
   <p>{{ data.cost_reference_note }}</p>
   {% endif %}
 
-  <h3>車両図の傷・凹みなどの記号</h3>
+  <h3>{{ t('damage_section') }}</h3>
   {% if data.damage_points %}
   <table>
-    <tr><th>部位</th><th>記号</th><th>意味</th><th>重大度</th></tr>
+    <tr><th>{{ t('location') }}</th><th>{{ t('symbol') }}</th><th>{{ t('meaning') }}</th><th>{{ t('severity') }}</th></tr>
     {% for d in data.damage_points %}
     <tr>
       <td>{{ d.location }}</td>
@@ -58,22 +58,22 @@
     {% endfor %}
   </table>
   {% else %}
-  <p class="muted">目立った傷・凹みの記載は確認できませんでした。</p>
+  <p class="muted">{{ t('no_damage') }}</p>
   {% endif %}
 
-  <h3>装備・特記事項</h3>
+  <h3>{{ t('equipment_section') }}</h3>
   {% if data.equipment_and_remarks %}
   <ul>
     {% for e in data.equipment_and_remarks %}<li>{{ e }}</li>{% endfor %}
   </ul>
-  {% else %}<p class="muted">特記事項は読み取れませんでした。</p>{% endif %}
+  {% else %}<p class="muted">{{ t('no_remarks') }}</p>{% endif %}
 
-  <h3>購入前に必ず確認すべき懸念点</h3>
+  <h3>{{ t('risk_section') }}</h3>
   {% if data.risk_flags %}
   <ul>{% for r in data.risk_flags %}<li>⚠️ {{ r }}</li>{% endfor %}</ul>
-  {% else %}<p class="muted">シート上、特筆すべき懸念点はありませんでした。</p>{% endif %}
+  {% else %}<p class="muted">{{ t('no_risk') }}</p>{% endif %}
 
-  <h3>入札前チェックリスト</h3>
+  <h3>{{ t('checklist_section') }}</h3>
   {% if data.checklist_before_bid %}
   <ul>{% for c in data.checklist_before_bid %}<li>☐ {{ c }}</li>{% endfor %}</ul>
   {% endif %}
@@ -82,37 +82,37 @@
 </div>
 
 <div class="card">
-  <h2>この判定は合っていましたか？（AIを育てる フィードバック①）</h2>
-  <p class="muted">正誤やコメントを送ると、次回以降の判定ルールに自動で反映されます。</p>
+  <h2>{{ t('feedback_h2') }}</h2>
+  <p class="muted">{{ t('feedback_desc') }}</p>
   <form action="{{ url_for('submit_feedback', analysis_id=row['id']) }}" method="post">
-    <label>評価</label>
+    <label>{{ t('rating') }}</label>
     <select name="rating">
-      <option value="correct">妥当だった</option>
-      <option value="partial">一部違った</option>
-      <option value="incorrect">大きく違った</option>
+      <option value="correct">{{ t('rating_correct') }}</option>
+      <option value="partial">{{ t('rating_partial') }}</option>
+      <option value="incorrect">{{ t('rating_incorrect') }}</option>
     </select>
-    <label>指摘の種類（診断のどこを改善すべきか）</label>
+    <label>{{ t('fb_category') }}</label>
     <select name="category">
-      <option value="">（選択しない）</option>
-      <option value="記号の見逃し">記号の見逃し（シートにある記号に触れていない）</option>
-      <option value="記号の誤読">記号の誤読（違う記号・違う部位として読んだ）</option>
-      <option value="評価点の読み間違い">評価点・内外装評価の読み間違い</option>
-      <option value="判定が甘すぎ">判定が甘すぎ（もっと厳しく見るべき）</option>
-      <option value="判定が厳しすぎ">判定が厳しすぎ（もっと買い寄りでよい）</option>
-      <option value="相場・金額感のズレ">相場・金額感のズレ</option>
-      <option value="会場基準の考慮不足">会場（TAA/USS等）基準の考慮不足</option>
-      <option value="輸出条件の考慮不足">豪州輸出条件の考慮不足</option>
-      <option value="その他">その他</option>
+      <option value="">-</option>
+      <option value="記号の見逃し">記号の見逃し / Missed symbol</option>
+      <option value="記号の誤読">記号の誤読 / Misread symbol</option>
+      <option value="評価点の読み間違い">評価点の読み間違い / Misread grade</option>
+      <option value="判定が甘すぎ">判定が甘すぎ / Too lenient</option>
+      <option value="判定が厳しすぎ">判定が厳しすぎ / Too strict</option>
+      <option value="相場・金額感のズレ">相場・金額感のズレ / Price sense off</option>
+      <option value="会場基準の考慮不足">会場基準の考慮不足 / Auction house standards</option>
+      <option value="輸出条件の考慮不足">豪州輸出条件の考慮不足 / Export conditions</option>
+      <option value="その他">その他 / Other</option>
     </select>
-    <label>メモ（具体的にどう違ったか・どう直すべきか）</label>
-    <textarea name="comment" rows="3" placeholder="例: 左リアドアのX2を見逃していた。交換歴として判定に織り込むべき"></textarea>
-    <button class="btn" type="submit">フィードバックを送る</button>
+    <label>{{ t('fb_memo') }}</label>
+    <textarea name="comment" rows="3"></textarea>
+    <button class="btn" type="submit">{{ t('send_feedback') }}</button>
   </form>
 
   {% if feedback_list %}
-  <h3>これまでのフィードバック</h3>
+  <h3>{{ t('past_feedback') }}</h3>
   <table>
-    <tr><th>日時</th><th>担当</th><th>評価</th><th>種類</th><th>メモ</th></tr>
+    <tr><th>{{ t('date') }}</th><th>{{ t('staff') }}</th><th>{{ t('rating') }}</th><th>{{ t('type') }}</th><th>{{ t('memo') }}</th></tr>
     {% for f in feedback_list %}
     <tr>
       <td>{{ f['created_at'][:16] }}</td>
@@ -127,41 +127,40 @@
 </div>
 
 <div class="card">
-  <h2>購入後の結果を記録する（AIを育てる フィードバック②）</h2>
-  <p class="muted">実際に購入した場合の結果を記録すると、判定精度の統計や今後のルール改善に使われます。</p>
+  <h2>{{ t('outcome_h2') }}</h2>
   <form action="{{ url_for('submit_outcome', analysis_id=row['id']) }}" method="post">
-    <label>この車を購入しましたか？</label>
+    <label>この車を購入しましたか？ / Did you purchase this car?</label>
     <select name="purchased">
-      <option value="yes">購入した</option>
-      <option value="no">購入しなかった</option>
+      <option value="yes">購入した / Yes</option>
+      <option value="no">購入しなかった / No</option>
     </select>
-    <label>実際の車両状態</label>
-    <textarea name="actual_condition" rows="2" placeholder="実車確認・納車後の状態など"></textarea>
-    <label>実際にかかった修理費用（円・任意）</label>
+    <label>実際の車両状態 / Actual condition</label>
+    <textarea name="actual_condition" rows="2"></textarea>
+    <label>実際にかかった修理費用（円） / Actual repair cost (JPY)</label>
     <input type="number" name="repair_cost" min="0">
-    <label>シートに記載がなかった問題点（任意）</label>
+    <label>シートに記載がなかった問題点 / Issues not on the sheet</label>
     <textarea name="hidden_issues" rows="2"></textarea>
-    <label>満足度</label>
+    <label>満足度 / Satisfaction</label>
     <select name="satisfaction">
-      <option value="good">良かった（判定通り、または判定より良かった）</option>
-      <option value="ok">まあまあ</option>
-      <option value="bad">悪かった（判定より悪かった）</option>
+      <option value="good">良かった / Good</option>
+      <option value="ok">まあまあ / OK</option>
+      <option value="bad">悪かった / Bad</option>
     </select>
-    <label>メモ（任意）</label>
+    <label>{{ t('memo') }}</label>
     <textarea name="notes" rows="2"></textarea>
-    <button class="btn" type="submit">結果を記録する</button>
+    <button class="btn" type="submit">{{ t('record_btn') }}</button>
   </form>
 
   {% if outcome_list %}
-  <h3>これまでの結果報告</h3>
+  <h3>{{ t('past_feedback') }}</h3>
   <table>
-    <tr><th>日時</th><th>購入</th><th>満足度</th><th>メモ</th></tr>
+    <tr><th>{{ t('date') }}</th><th>{{ t('staff') }}</th><th>Purchase</th><th>Satisfaction</th><th>{{ t('memo') }}</th></tr>
     {% for o in outcome_list %}
-    <tr><td>{{ o['created_at'][:16] }}</td><td>{{ o['purchased'] }}</td><td>{{ o['satisfaction'] }}</td><td>{{ o['notes'] }}</td></tr>
+    <tr><td>{{ o['created_at'][:16] }}</td><td>{{ o['user_name'] or '-' }}</td><td>{{ o['purchased'] }}</td><td>{{ o['satisfaction'] }}</td><td>{{ o['notes'] }}</td></tr>
     {% endfor %}
   </table>
   {% endif %}
 </div>
 
-<p><a class="btn secondary" href="{{ url_for('index') }}">別のシートを診断する</a></p>
+<p><a class="btn secondary" href="{{ url_for('index') }}">{{ t('another_btn') }}</a></p>
 {% endblock %}

@@ -33,6 +33,19 @@
 </div>
 
 <div class="card">
+  <h2>Google連携（書類のスプレッドシート記録・Drive保存）</h2>
+  <p class="muted">
+    案件に書類（Invoice・Import Approval等）を保存したとき、Googleスプレッドシートに一覧を自動記録し、ファイル本体をGoogle Driveにも保存する連携です。
+    設定方法は同梱の「Google連携ガイド」を参照してください（Google Apps ScriptのWebアプリURLを貼り付けます）。
+  </p>
+  <form action="{{ url_for('save_google_webhook') }}" method="post">
+    <label>Apps Script Webhook URL（空欄で保存すると連携解除）</label>
+    <input type="text" name="gs_webhook_url" value="{{ gs_webhook_url }}" placeholder="https://script.google.com/macros/s/.../exec">
+    <button class="btn" type="submit">保存</button>
+  </form>
+</div>
+
+<div class="card">
   <h2>社内共有（合言葉ログイン）</h2>
   <p class="muted">合言葉を設定すると、アクセスした人は「名前＋合言葉」の入力を求められます。誰が診断・フィードバックしたかが記録されるようになります。空欄で保存すると解除（1人利用モード）。</p>
   <form action="{{ url_for('save_access_password') }}" method="post">

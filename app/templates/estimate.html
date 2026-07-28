@@ -2,7 +2,7 @@
 {% block title %}金額査定 - オークションシートAI診断{% endblock %}
 {% block content %}
 <div class="card">
-  <h1>金額査定（豪州輸入 総額計算）</h1>
+  <h1>{{ t('estimate_h1') }}</h1>
   <p class="muted">落札価格から、オーストラリアで乗り出せる状態になるまでの総額を試算します。各項目は実際の案件に合わせて自由に変更できます。初期値は社内の査定モデルに基づく参考値です。</p>
 
   <h3>落札価格</h3>
@@ -58,13 +58,13 @@
 </div>
 
 <div class="card">
-  <h2>この査定を案件に保存</h2>
+  <h2>{{ t('save_estimate_h2') }}</h2>
   {% if cases %}
   <form action="{{ url_for('estimate_save') }}" method="post">
     <label>保存先の案件</label>
     <select name="case_id">
       {% for c in cases %}
-      <option value="{{ c['id'] }}">#{{ c['id'] }} {{ c['customer_name'] }}（{{ c['stage'] }}）</option>
+      <option value="{{ c['id'] }}">#{{ c['id'] }} {{ c['customer_name'] }}（{{ tr_stage(c['stage']) }}）</option>
       {% endfor %}
     </select>
     <input type="hidden" name="summary" id="summary_field">

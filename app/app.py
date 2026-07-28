@@ -1,3 +1,4 @@
+import base64
 import os
 import uuid
 
@@ -14,6 +15,7 @@ from flask import (
 import db
 import config
 import analyzer
+import i18n
 
 BASE_DIR = os.path.dirname(__file__)
 UPLOAD_DIR = os.path.join(BASE_DIR, "data", "uploads")
@@ -65,12 +67,26 @@ def current_user():
     return session.get("user_name")
 
 
+def current_lang():
+    return session.get("lang", "ja")
+
+
+@app.route("/lang/<code>")
+def set_lang(code):
+    session["lang"] = "en" if code == "en" else "ja"
+    return redirect(request.referrer or url_for("index"))
+
+
 @app.context_processor
 def inject_globals():
+    lang = current_lang()
     return {
         "has_api_key": bool(config.active_api_key()),
         "current_user": session.get("user_name"),
         "login_enabled": bool(config.get_access_password()),
+        "t": i18n.make_t(lang),
+        "lang": lang,
+        "tr_stage": lambda s: i18n.translate_stage(s, lang),
     }
 
 
@@ -133,11 +149,13 @@ def case_detail(case_id):
         return redirect(url_for("cases"))
     events = db.case_events(case_id)
     linked_analyses = db.analyses_for_case(case_id)
+    documents = db.list_case_documents(case_id)
     return render_template(
         "case_detail.html",
         case=case,
         events=events,
         linked_analyses=linked_analyses,
+        documents=documents,
         stages=db.CASE_STAGES,
     )
 
@@ -157,6 +175,109 @@ def case_note(case_id):
         db.add_case_note(case_id, content, user_name=current_user())
         flash("メモを記録しました。", "success")
     return redirect(url_for("case_detail", case_id=case_id))
+
+
+@app.route("/case/<int:case_id>/price", methods=["POST"])
+def case_price(case_id):
+    price = request.form.get("final_price", "").strip()
+    if price:
+        db.set_case_price(case_id, price, user_name=current_user())
+        flash("成約金額を記録しました。", "success")
+    return redirect(url_for("case_detail", case_id=case_id))
+
+
+DOC_ALLOWED_EXT = {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".xlsx", ".docx", ".csv", ".txt"}
+
+
+def _send_to_google(case, doc_type, orig_name, data_bytes, mime):
+    """Google Apps Script Webhook経由でスプレッドシート記録＋Drive保存。設定が無ければ何もしない。"""
+    webhook = db.get_kv("gs_webhook_url") or os.environ.get("GS_WEBHOOK_URL", "")
+    if not webhook:
+        return None
+    import requests as _rq
+
+    payload = {
+        "caseId": case["id"],
+        "customer": case["customer_name"],
+        "docType": doc_type,
+        "fileName": orig_name,
+        "uploadedBy": current_user() or "",
+        "finalPrice": case["final_price"] or "",
+        "fileBase64": base64.b64encode(data_bytes).decode("ascii"),
+        "mimeType": mime,
+    }
+    resp = _rq.post(webhook, json=payload, timeout=30)
+    resp.raise_for_status()
+    return True
+
+
+@app.route("/case/<int:case_id>/document", methods=["POST"])
+def case_document(case_id):
+    case = db.get_case(case_id)
+    if not case:
+        flash("案件が見つかりませんでした。", "error")
+        return redirect(url_for("cases"))
+
+    file = request.files.get("doc_file")
+    doc_type = request.form.get("doc_type", "その他")
+    if not file or file.filename == "":
+        flash("ファイルを選択してください。", "error")
+        return redirect(url_for("case_detail", case_id=case_id))
+
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in DOC_ALLOWED_EXT:
+        flash("対応していないファイル形式です。", "error")
+        return redirect(url_for("case_detail", case_id=case_id))
+
+    data = file.read()
+    if len(data) > 15 * 1024 * 1024:
+        flash("ファイルが大きすぎます（15MBまで）。", "error")
+        return redirect(url_for("case_detail", case_id=case_id))
+
+    db.add_case_document(case_id, doc_type, file.filename, data, user_name=current_user())
+    db.add_case_note(case_id, f"書類を保存: [{doc_type}] {file.filename}", user_name=current_user())
+
+    mime = file.mimetype or "application/octet-stream"
+    try:
+        sent = _send_to_google(case, doc_type, file.filename, data, mime)
+        if sent:
+            flash("書類を保存し、Googleスプレッドシート/Driveにも記録しました。", "success")
+        else:
+            flash("書類を保存しました。（Google連携は未設定です。設定画面から連携できます）", "success")
+    except Exception as e:  # noqa: BLE001
+        flash(f"書類は保存しましたが、Google連携でエラーが発生しました: {e}", "error")
+
+    return redirect(url_for("case_detail", case_id=case_id))
+
+
+@app.route("/document/<int:doc_id>")
+def download_document(doc_id):
+    from flask import Response, abort
+
+    row = db.get_case_document(doc_id)
+    if not row or row["data"] is None:
+        abort(404)
+    data = bytes(row["data"])
+    ext = os.path.splitext(row["orig_name"] or "")[1].lower()
+    mime = {
+        ".pdf": "application/pdf",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".csv": "text/csv",
+        ".txt": "text/plain",
+    }.get(ext, "application/octet-stream")
+    from urllib.parse import quote
+
+    return Response(
+        data,
+        mimetype=mime,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(row['orig_name'] or 'document')}"},
+    )
 
 
 @app.route("/analyze", methods=["POST"])
@@ -179,9 +300,20 @@ def analyze():
     save_path = os.path.join(UPLOAD_DIR, filename)
     file.save(save_path)
 
+    # シート画像をDBにも保存（外部DB利用時はサーバー再起動後も画像が残る）
+    try:
+        with open(save_path, "rb") as fh:
+            db.save_image(filename, fh.read())
+    except Exception:  # noqa: BLE001
+        pass
+
     try:
         result = analyzer.analyze_image(
-            save_path, config.active_api_key(), config.active_model(), provider=config.get_provider()
+            save_path,
+            config.active_api_key(),
+            config.active_model(),
+            provider=config.get_provider(),
+            lang=current_lang(),
         )
     except Exception as e:  # noqa: BLE001
         flash(f"解析中にエラーが発生しました: {e}", "error")
@@ -269,8 +401,8 @@ def submit_outcome(analysis_id):
 
 @app.route("/settings")
 def settings():
-    base_knowledge = analyzer._read_file(analyzer.BASE_KNOWLEDGE_PATH)
-    learned_rules = analyzer._read_file(analyzer.LEARNED_RULES_PATH)
+    base_knowledge = analyzer.get_base_knowledge()
+    learned_rules = analyzer._learned_rules_text()
     rules_rows = db.list_learned_rules()
     return render_template(
         "settings.html",
@@ -282,14 +414,30 @@ def settings():
         provider=config.get_provider(),
         gemini_key_set=bool(config.get_gemini_key()),
         gemini_model=config.get_gemini_model(),
+        gs_webhook_url=db.get_kv("gs_webhook_url") or os.environ.get("GS_WEBHOOK_URL", ""),
     )
+
+
+@app.route("/settings/google", methods=["POST"])
+def save_google_webhook():
+    url = request.form.get("gs_webhook_url", "").strip()
+    db.set_kv("gs_webhook_url", url)
+    if url:
+        flash("Google連携（Webhook URL）を保存しました。", "success")
+    else:
+        flash("Google連携を解除しました。", "success")
+    return redirect(url_for("settings"))
 
 
 @app.route("/settings/knowledge", methods=["POST"])
 def save_knowledge():
     text = request.form.get("base_knowledge", "")
-    with open(analyzer.BASE_KNOWLEDGE_PATH, "w", encoding="utf-8") as f:
-        f.write(text)
+    db.set_kv("base_knowledge", text)  # DBに保存（外部DB利用時は永続）
+    try:
+        with open(analyzer.BASE_KNOWLEDGE_PATH, "w", encoding="utf-8") as f:
+            f.write(text)
+    except Exception:  # noqa: BLE001
+        pass
     flash("評価基準ナレッジを更新しました。", "success")
     return redirect(url_for("settings"))
 
@@ -400,9 +548,25 @@ def stats():
 
 @app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
-    from flask import send_from_directory
+    from flask import send_from_directory, Response, abort
 
-    return send_from_directory(UPLOAD_DIR, filename)
+    local_path = os.path.join(UPLOAD_DIR, os.path.basename(filename))
+    if os.path.exists(local_path):
+        return send_from_directory(UPLOAD_DIR, os.path.basename(filename))
+
+    # ディスクに無い場合（サーバー再起動後など）はDBから復元
+    data = db.get_image(os.path.basename(filename))
+    if data:
+        ext = os.path.splitext(filename)[1].lower()
+        mime = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+            ".gif": "image/gif",
+        }.get(ext, "application/octet-stream")
+        return Response(data, mimetype=mime)
+    abort(404)
 
 
 if __name__ == "__main__":
