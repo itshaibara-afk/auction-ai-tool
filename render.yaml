@@ -12,5 +12,7 @@ services:
         sync: false
       - key: ACCESS_PASSWORD
         sync: false
+      - key: DATABASE_URL
+        sync: false
       - key: FLASK_SECRET_KEY
         generateValue: true
